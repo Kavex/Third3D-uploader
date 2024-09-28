@@ -1,0 +1,37 @@
+[package]
+name = "uploader"
+version = "0.1.0"
+description = "Third Uploader"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1", features = [] }
+
+[dependencies]
+tauri = { version = "1", features = [ "updater", "window-show", "window-close", "fs-all", "protocol-asset", "dialog-open", "path-all", "http-all", "shell-open"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+md-5 = "0.10.6"
+base64 = "0.22.1"
+librsync = { git = "https://github.com/mbrt/librsync-rs.git" }
+tokio = "1.39.1"
+futures-util = "0.3.30"
+read-progress-stream = "1.0.0"
+thiserror = "1.0.63"
+tokio-util = { version = "0.7", features = [ "codec" ] }
+reqwest = { version = "0.12", features = [ "json", "stream" ] }
+zip = "2.2"
+rand = "0.8"
+tauri-plugin-fs-extra = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
+
+[features]
+# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release.package.wry]
+debug = true
+debug-assertions = true
