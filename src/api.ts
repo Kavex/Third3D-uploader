@@ -1,7 +1,7 @@
 import { fetch, ResponseType, Body } from '@tauri-apps/api/http';
 
-const API_BASE_URL = 'https://vrchat.com/api/1';
-export const USER_AGENT = 'Third Uploader/0.1.0 third3dcom@gmail.com';
+const API_BASE_URL = 'https://api.vrchat.cloud/api/1';
+export const USER_AGENT = 'Third Uploader/0.1.2 third3dcom@gmail.com';
 
 const parseSetCookieHeader = (setCookieHeaders: string[]) => {
   const cookies = {};
@@ -156,16 +156,21 @@ export async function getUser(
   if (token?.twoFactor) {
     cookie += `twoFactorAuth=${token.twoFactor};`;
   }
+  const auth = account ? 'Basic ' + btoa(encodeURIComponent(account.username) + ':' + encodeURIComponent(account.password)) : undefined;
+  console.log(auth);
   const resp = await fetch(`${API_BASE_URL}/auth/user`, {
     method: 'GET',
     headers: {
       'User-Agent': USER_AGENT,
-      'Authorization': account ? 'Basic ' + btoa(account.username + ':' + account.password) : undefined,
+      'Authorization': auth,
       'Cookie': cookie
     },
     responseType: ResponseType.JSON,
   });
-  if (resp.status === 401) return { type: "invalid" };
+  if (resp.status === 401) {
+    console.error(resp.data);
+    return { type: "invalid" }
+  };
   if (!resp.ok) throw new VRChatError(resp.data);
 
   let authToken = undefined;

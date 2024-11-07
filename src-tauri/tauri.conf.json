@@ -32,7 +32,7 @@
       "http": {
         "all": true,
         "scope": [
-          "https://vrchat.com/api/1/*"
+          "https://api.vrchat.cloud/api/1/*"
         ]
       },
       "path": {
