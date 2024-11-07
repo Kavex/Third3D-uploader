@@ -54,6 +54,5 @@ jobs:
         with:
           tagName: v${{ steps.package-version.outputs.VERSION }}
           releaseName: 'v${{ steps.package-version.outputs.VERSION }}'
-          releaseBody: "See the assets to download this version and install."
           releaseDraft: false
           prerelease: false
