@@ -173,7 +173,7 @@ function User() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant='ghost' className='flex items-center h-auto gap-4 px-6 py-3 hover:bg-transparent hover:bg-gradient-to-br hover:from-zinc-700 hover:to-transparent'>
-            <img src={imgUrl} className='size-12 object-cover rounded-full outline' />
+            {/* <img src={imgUrl} className='size-12 object-cover rounded-full outline' /> */}
             <span className='text-lg'>{user.displayName}</span>
           </Button>
         </DropdownMenuTrigger>
