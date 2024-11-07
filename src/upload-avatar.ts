@@ -1,12 +1,13 @@
 import { createAvatar, createFile, createFileVersion, finishFileUpload, getAvatar, showFile, startFileUpload, updateAvatar, VRChatError, VRChatMimeType } from "./api";
 import { metadata } from "tauri-plugin-fs-extra-api";
-import { extname } from "@tauri-apps/api/path";
+import { extname, dirname, join } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api";
 import upload from "./upload";
 import { Metadata } from "./bundle-input";
 
 const md5DigestFile = (path: string) => invoke('md5_digest_file', { path }) as Promise<string>;
 const signatureGenerateFromFile = (path: string, output: string, fake?: boolean) => invoke('signature_generate_from_file', { path, output }) as Promise<void>;
+const transcodeBundle = (path: string, output: string) => invoke("transcode_bundle", { path, output }) as Promise<void>;
 
 // returns asssetUrl
 async function uploadFileToVRChat(authToken: string, name: string, path: string, mimeType: VRChatMimeType) {
@@ -109,9 +110,20 @@ export async function uploadAvatar(authToken: string, metadata: Metadata) {
 
     const bundleUploads = [];
     for (const [platform, bundle] of Object.entries(metadata.assetBundles)) {
+        let bundlePath;
+        if (await extname(bundle.path) === "vrcaz") {
+            const dir = await dirname(bundle.path);
+            const out = await join(dir, `${platform}.vrca`);
+            await transcodeBundle(bundle.path, out);
+            console.log("transcoded");
+            bundlePath = out;
+        } else {
+            bundlePath = bundle.path;
+        }
+
         const uploadBundle = async () => {
             const unityPlatform = platform === "windows" ? "standalonewindows" : platform;
-            const avatarUrl = await uploadFileToVRChat(authToken, avatarFileName(metadata.name), bundle.path, "application/x-avatar");
+            const avatarUrl = await uploadFileToVRChat(authToken, avatarFileName(metadata.name), bundlePath, "application/x-avatar");
             await updateAvatar(authToken, avatar.id, { assetUrl: avatarUrl, platform: unityPlatform, unityVersion: bundle.unityVersion, assetVersion: 1 });
         };
         bundleUploads.push(uploadBundle());

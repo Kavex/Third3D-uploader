@@ -11,6 +11,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use bundle::{AssetBundleDecoder, AssetBundleEncoder};
 use keyring::Entry;
 use librsync::Signature;
 use md5::{Digest, Md5};
@@ -27,6 +28,7 @@ use zip::ZipArchive;
 
 //   mod file_watcher;
 mod upload;
+mod bundle;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -118,6 +120,22 @@ async fn unpack_bundle(app_handle: tauri::AppHandle, path: String) -> Result<Str
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn transcode_bundle(path: String, output: String) -> Result<(), String> {
+    let input_file = File::open(&path).map_err(|err| err.to_string())?;
+    let reader = BufReader::new(input_file);
+    let decoder = AssetBundleDecoder::new(reader);
+    let mut bundle = decoder.decode().map_err(|err| err.to_string())?;
+
+    bundle.set_blocks_lzma();
+
+    let output_file = File::create(&output).map_err(|err| err.to_string())?;
+    let writer = std::io::BufWriter::new(output_file);
+    let encoder = AssetBundleEncoder::new(writer);
+    encoder.encode(&bundle).map_err(|err| err.to_string())?;
+    Ok(())
+}
+
 const USER_AGENT: &str = "Third Uploader/0.1.0 third3dcom@gmail.com";
 
 #[tauri::command]
@@ -173,7 +191,8 @@ fn main() {
             md5_digest_file,
             signature_generate_from_file,
             unpack_bundle,
-            upload_file
+            upload_file,
+            transcode_bundle
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

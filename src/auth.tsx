@@ -217,7 +217,6 @@ export function AuthProvider({ children }) {
 
   const handleTwoFactor = (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
-    console.log("code:", code);
     setError(null);
     twoFactor(code);
   };

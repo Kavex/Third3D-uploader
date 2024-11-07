@@ -157,7 +157,6 @@ export async function getUser(
     cookie += `twoFactorAuth=${token.twoFactor};`;
   }
   const auth = account ? 'Basic ' + btoa(encodeURIComponent(account.username) + ':' + encodeURIComponent(account.password)) : undefined;
-  console.log(auth);
   const resp = await fetch(`${API_BASE_URL}/auth/user`, {
     method: 'GET',
     headers: {

@@ -86,10 +86,13 @@ const AssetBundleInput = (props: { onChange: (bundle: Metadata, unpackPath: stri
 
       for (const [platform, bundle] of Object.entries(metadata.assetBundles)) {
         const assetBundlePath = await join(unpackPath, `${platform}.vrca`);
-        if (await exists(assetBundlePath)) {
+        const assetBundleZPath = await join(unpackPath, `${platform}.vrcaz`);
+        if (await exists(assetBundleZPath)) {
+          bundle.path = assetBundleZPath;
+        } else if (await exists(assetBundlePath)) {
           bundle.path = assetBundlePath;
         } else {
-          throw new Error(`${platform}.vrca not found`);
+          throw new Error(`Asset bundle for ${platform} not found`);
         }
       }
       // setLoading(false); // don't stop loading, let unmount handle it for smooth transition
