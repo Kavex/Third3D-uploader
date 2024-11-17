@@ -52,7 +52,6 @@ export function useUpload(bundle: Bundle, readyBundle: ReadyBundles) {
             const totalPlatforms = Object.keys(bundle.metadata.assetBundles).length;
             let platformIndex = 0;
             for await (const { platform, path } of readyBundle()) {
-                console.log("uploading: ", path);
                 const unityPlatform = platform === "windows" ? "standalonewindows" : platform;
                 const unityVersion = bundle.metadata.assetBundles[platform as Platform]!!.unityVersion;
                 const avatarUrl = await uploadFileToVRChat(authToken, avatarFileName(bundle.metadata.name), path, "application/x-avatar", (part, totalParts) => {

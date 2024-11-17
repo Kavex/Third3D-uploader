@@ -88,9 +88,7 @@ const reducer = (state: BundleState, action: Action): BundleState => {
 
 async function startTranscodes(assetBundlePaths: Partial<Record<Platform, AssetBundlePath>>) {
     const transcodes: Partial<Record<Platform, Promise<string>>> = {};
-    console.log(assetBundlePaths);
     for (const [platform, bundlePath] of Object.entries(assetBundlePaths)) {
-        console.log(bundlePath);
         if (bundlePath.z) {
             const dir = await dirname(bundlePath.path);
             const outPath = await join(dir, `${platform}.vrca`);
@@ -189,13 +187,11 @@ async function unpack(bundlePath: string): Promise<Bundle> {
     for (const platform of ["windows", "android", "ios"]) {
         if (!(platform in metadata.assetBundles)) continue;
         const zPath = await getBundlePath(unpackPath, platform as Platform, true);
-        console.log(zPath);
         if (await exists(zPath)) {
             assetBundlePaths[platform as Platform] = { path: zPath, z: true };
             continue;
         }
         const path = await getBundlePath(unpackPath, platform as Platform, false);
-        console.log(path);
         if (await exists(path)) {
             assetBundlePaths[platform as Platform] = { path, z: false };
             continue;

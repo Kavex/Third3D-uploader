@@ -125,7 +125,6 @@ function Avatar(props: { bundle: Bundle, readyBundle: ReadyBundles, onFinish: ()
 
   const handleUpload = () => {
     const runUpload = async (authToken: string) => {
-      console.log("start upload");
       await upload(authToken);
       props.onFinish();
     };
