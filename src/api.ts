@@ -346,7 +346,7 @@ export const createFileVersion = async (
 };
 
 // Add this interface to define the Avatar object structure
-interface Avatar {
+export interface Avatar {
   assetUrl: string;
   assetUrlObject?: object;
   authorId: string;

@@ -1,4 +1,4 @@
-import { createContext, FormEvent, useContext, useEffect, useState } from "react";
+import { createContext, FormEvent, MouseEvent, ReactNode, useContext, useEffect, useState } from "react";
 import { getUser, User, verifyTwoFactor, logout as apiLogout } from "./api";
 import { invoke } from "@tauri-apps/api";
 import { z } from "zod";
@@ -14,11 +14,11 @@ import { LoaderCircle } from "lucide-react";
 import { open } from "@tauri-apps/api/shell";
 
 
-const ExternalLink = ({ href, children }) => {
-  const handleClick = async (e) => {
+const ExternalLink = (props: { href: string, children: ReactNode; }) => {
+  const handleClick = async (e: MouseEvent) => {
     e.preventDefault();
     try {
-      await open(href);
+      await open(props.href);
     } catch (error) {
       console.error('Failed to open link:', error);
     }
@@ -26,11 +26,11 @@ const ExternalLink = ({ href, children }) => {
 
   return (
     <a
-      href={href}
+      href={props.href}
       onClick={handleClick}
       className="text-blue-600 hover:text-blue-800 underline"
     >
-      {children}
+      {props.children}
     </a>
   );
 };
@@ -72,15 +72,28 @@ const loadConfig = async () => {
   return config;
 };
 
-const AuthContext = createContext(null);
+interface AuthContext {
+  user: User | null,
+  authToken: string | null,
+  openLogin: (onLogin?: (authToken: string) => any) => void;
+  logout: () => Promise<void>;
+}
 
-export function AuthProvider({ children }) {
+const AuthContext = createContext<AuthContext | null>(null);
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("Component not inside AuthProvider");
+  return ctx;
+};
+
+
+export function AuthProvider(props: { children: ReactNode; }) {
   // auth states
   const [user, setUser] = useState<User | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [twoFactorType, setTwoFactorType] = useState<"emailotp" | "totp" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [{ onLogin }, setOnLogin] = useState<{ onLogin: (authToken: string) => any | null; }>({ onLogin: null }); // workaround next state updater function argument
+  const [{ onLogin }, setOnLogin] = useState<{ onLogin: ((authToken: string) => any) | null; }>({ onLogin: null }); // workaround next state updater function argument
 
   // ui states
   const [loginOpen, setLoginOpen] = useState(false);
@@ -99,7 +112,7 @@ export function AuthProvider({ children }) {
 
       const token = await loadToken(config.lastUsername);
       if (!token) return;
-      const res = await getUser(null, token);
+      const res = await getUser(undefined, token);
       if (res.type !== "user") return;
 
       setUser(res.user);
@@ -110,7 +123,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // check if logged in and has on login handler
-    if (onLogin && user) {
+    if (onLogin && user && authToken) {
       onLogin(authToken);
       setOnLogin({ onLogin: null });
     }
@@ -146,12 +159,14 @@ export function AuthProvider({ children }) {
   };
 
   const twoFactor = async (code: string) => {
+    if (!authToken) throw new Error("No auth token");
+    if (!twoFactorType) throw new Error("No two factor type");
     setLoading(true);
     setError(null);
     try {
       const twoFactorToken = await verifyTwoFactor({ authToken, type: twoFactorType, code });
       const token = { auth: authToken, twoFactor: twoFactorToken };
-      const resp = await getUser(null, token);
+      const resp = await getUser(undefined, token);
       if (resp.type !== "user") { // TODO: Handle failing 2fa better
         throw new Error("Failed to get user after 2FA");
       }
@@ -194,7 +209,7 @@ export function AuthProvider({ children }) {
     login(username, password);
   };
 
-  const handleLoginChange = (open) => {
+  const handleLoginChange = (open: boolean) => {
     if (open) {
       setLoginOpen(true);
     } else {
@@ -223,12 +238,12 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ user, authToken, openLogin, logout }}>
-      {children}
+      {props.children}
       <Dialog open={loginOpen} onOpenChange={handleLoginChange}>
         <DialogContent className='max-w-sm bg-transparent bg-gradient-to-br from-zinc-700/50 to-black/50 backdrop-blur-lg'>
           <DialogHeader>
             <DialogTitle className='flex items-start'>
-              <span className='text-lg font-semibold'>Login to</span><img src={vrchatLogo} className="w-24 ml-2" />
+              <span className='text-lg font-semibold'>Login to</span><img src={vrchatLogo} className="w-24 ml-2" alt="VRChat" />
             </DialogTitle>
           </DialogHeader>
           {error && (
@@ -309,5 +324,3 @@ export function AuthProvider({ children }) {
       </Dialog>
     </AuthContext.Provider>);
 };
-
-export const useAuth = () => useContext(AuthContext);
