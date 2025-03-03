@@ -1,54 +1,39 @@
-import { invoke } from "@tauri-apps/api/tauri";
-import { appWindow } from "@tauri-apps/api/window";
+// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+import { invoke, Channel } from '@tauri-apps/api/core';
 
 interface ProgressPayload {
-  id: number;
   progress: number;
+  progressTotal: number;
   total: number;
+  transferSpeed: number;
 }
 
-type ProgressHandler = (progress: number, total: number) => void;
-const handlers: Map<number, ProgressHandler> = new Map();
-let listening = false;
-
-async function listenToEventIfNeeded(event: string): Promise<void> {
-  if (listening) {
-    return await Promise.resolve();
-  }
-
-  // We're not awaiting this Promise to prevent issues with Promise.all
-  // the listener will still be registered in time.
-  void appWindow.listen<ProgressPayload>(event, ({ payload }) => {
-    const handler = handlers.get(payload.id);
-    if (handler != null) {
-      handler(payload.progress, payload.total);
-    }
-  });
-
-  listening = true;
-}
+type ProgressHandler = (progress: ProgressPayload) => void;
 
 async function upload(
   url: string,
   filePath: string,
   progressHandler?: ProgressHandler,
-  headers?: Map<string, string>,
+  headers?: Map<string, string>
 ): Promise<string> {
   const ids = new Uint32Array(1);
   window.crypto.getRandomValues(ids);
   const id = ids[0];
 
-  if (progressHandler != null) {
-    handlers.set(id, progressHandler);
+  const onProgress = new Channel<ProgressPayload>();
+  if (progressHandler) {
+    onProgress.onmessage = progressHandler;
   }
 
-  await listenToEventIfNeeded("upload://progress");
-
-  return await invoke("plugin:upload|upload", {
+  return await invoke('upload', {
     id,
     url,
     filePath,
     headers: headers ?? {},
+    onProgress
   });
 }
 
@@ -61,24 +46,25 @@ async function download(
   filePath: string,
   progressHandler?: ProgressHandler,
   headers?: Map<string, string>,
+  body?: string
 ): Promise<void> {
   const ids = new Uint32Array(1);
   window.crypto.getRandomValues(ids);
   const id = ids[0];
 
-  if (progressHandler != null) {
-    handlers.set(id, progressHandler);
+  const onProgress = new Channel<ProgressPayload>();
+  if (progressHandler) {
+    onProgress.onmessage = progressHandler;
   }
 
-  await listenToEventIfNeeded("download://progress");
-
-  await invoke("plugin:upload|download", {
+  await invoke('plugin:upload|download', {
     id,
     url,
     filePath,
     headers: headers ?? {},
+    onProgress,
+    body
   });
 }
 
-export default upload;
 export { download, upload };

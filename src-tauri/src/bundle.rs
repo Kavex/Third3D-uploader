@@ -70,7 +70,6 @@ impl AssetBundle {
             block.flags = (block.flags & !0x3F) | 1;
         }
     }
-
 }
 
 pub struct AssetBundleDecoder<R: Read + Seek> {
@@ -210,9 +209,7 @@ impl<R: Read + Seek> AssetBundleDecoder<R> {
                 self.inner.read_exact(&mut data)?;
                 Ok(lz4_flex::decompress(&data, uncompressed_size as usize)?)
             }
-            4 => {
-                Ok(zstd::decode_all(&mut self.inner)?)
-            }
+            4 => Ok(zstd::decode_all(&mut self.inner)?),
             _ => {
                 let mut data = Vec::with_capacity(compressed_size as usize);
                 unsafe {
@@ -249,10 +246,8 @@ impl<W: Write + Seek> AssetBundleEncoder<W> {
         let size_pos = self.inner.stream_position()?;
         self.inner.write_u64(0)?;
 
-
         let compressed_block =
             self.compress(&bundle.block, (bundle.blocks_info[0].flags & 0x3F).into())?;
-
 
         // Create and compress block info
         let block_info = {
@@ -298,9 +293,7 @@ impl<W: Write + Seek> AssetBundleEncoder<W> {
             self.inner.align(16)?;
         }
 
-
         self.inner.write_all(&compressed_block)?;
-
 
         // Write final size
         let end_pos = self.inner.stream_position()?;

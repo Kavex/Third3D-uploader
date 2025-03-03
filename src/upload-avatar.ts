@@ -1,8 +1,8 @@
-import { Avatar, createAvatar, createFile, createFileVersion, finishFileUpload, getAvatar, showFile, startFileUpload, updateAvatar, VRChatError, VRChatMimeType } from "./api";
-import { metadata } from "tauri-plugin-fs-extra-api";
+import { Avatar, createAvatar, createFile, createFileVersion, finishFileUpload, getAvatar, showFile, startFileUpload, updateAvatar, USER_AGENT, VRChatError, VRChatMimeType } from "./api";
+import { stat } from "@tauri-apps/plugin-fs";
 import { extname } from "@tauri-apps/api/path";
-import { invoke } from "@tauri-apps/api";
-import upload from "./upload";
+import { invoke } from "@tauri-apps/api/core";
+import { upload } from "./upload";
 import { useState } from "react";
 import { Bundle, ReadyBundles } from "./bundle";
 
@@ -77,12 +77,12 @@ async function uploadFileToVRChat(authToken: string, name: string, path: string,
     let file = await createFile(authToken, { name, mimeType, extension });
 
     const fileMd5 = await md5DigestFile(path);
-    const fileMetadata = await metadata(path);
+    const fileMetadata = await stat(path, {});
 
     const signaturePath = path + '.sig';
     await signatureGenerateFromFile(path, signaturePath);
     const signatureMd5 = await md5DigestFile(signaturePath);
-    const signatureMetadata = await metadata(signaturePath);
+    const signatureMetadata = await stat(signaturePath);
 
     file = await createFileVersion(authToken, file.id, {
         signatureMd5,
@@ -117,10 +117,13 @@ async function uploadFileToVRChat(authToken: string, name: string, path: string,
         } else {
             onProgress(0, 1);
             const { url } = await startFileUpload(authToken, file.id, 1, "file");
+            console.log('start upload');
             const resp = await upload(url, path, undefined, new Map<string, string>([
+                ["User-Agent", USER_AGENT],
                 ["Content-Type", mimeType],
                 ["Content-MD5", fileMd5]
             ]));
+            console.log('finish upload');
             await finishFileUpload(authToken, file.id, 1, "file");
             onProgress(1, 1);
         }
@@ -129,6 +132,7 @@ async function uploadFileToVRChat(authToken: string, name: string, path: string,
     const uploadSig = async () => {
         const { url } = await startFileUpload(authToken, file.id, 1, "signature");
         const resp = await upload(url, signaturePath, undefined, new Map<string, string>([
+            ["User-Agent", USER_AGENT],
             ["Content-Type", "application/x-rsync-signature"],
             ["Content-MD5", signatureMd5]
         ]));

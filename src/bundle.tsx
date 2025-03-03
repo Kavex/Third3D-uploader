@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api";
-import { exists, readTextFile, removeDir } from "@tauri-apps/api/fs";
+import { invoke } from "@tauri-apps/api/core";
+import { exists, readTextFile, remove } from "@tauri-apps/plugin-fs";
 import { dirname, join } from "@tauri-apps/api/path";
 import { useEffect, useReducer } from "react";
 import { z } from "zod";
@@ -78,7 +78,7 @@ const reducer = (state: BundleState, action: Action): BundleState => {
     } else if (action.type === "set_transcodes") {
         return { ...state, transcodes: action.transcodes };
     } else if (action.type === "unload_bundle") {
-        if (state.bundle?.unpackPath) removeDir(state.bundle.unpackPath, { recursive: true });
+        if (state.bundle?.unpackPath) remove(state.bundle.unpackPath, { recursive: true });
         return { bundle: null, bundlePath: null, transcodes: {}, error: null };
     } else if (action.type === "set_error") {
         return { ...state, error: action.error };

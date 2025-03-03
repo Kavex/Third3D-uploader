@@ -1,95 +1,72 @@
 {
-  "build": {
-    "beforeDevCommand": "bun run dev",
-    "beforeBuildCommand": "bun run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
-  },
-  "package": {
-    "productName": "Third Uploader"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "dialog": {
-        "all": false,
-        "ask": false,
-        "confirm": false,
-        "message": false,
-        "open": true,
-        "save": false
-      },
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "fs": {
-        "all": true,
-        "scope": [
-          "$APPDATA/bundles/**", "$APPDATA/*"
-        ]
-      },
-      "http": {
-        "all": true,
-        "scope": [
-          "https://api.vrchat.cloud/api/1/*"
-        ]
-      },
-      "path": {
-        "all": true
-      },
-      "protocol": {
-        "asset": true,
-        "assetScope": ["$APPDATA/bundles/**"]
-      },
-      "window": {
-        "show": true,
-        "close": true
-      }
-    },
-    "windows": [
-      {
-        "title": "Third Uploader",
-        "width": 800,
-        "height": 600,
-        "minWidth": 800,
-        "minHeight": 600,
-        "decorations": true,
-        "fileDropEnabled": true,
-        "visible": false
-      }
-    ],
-    "security": {
-      "csp": "default-src 'self'; img-src 'self' *.vrchat.cloud asset: https://asset.localhost; style-src 'self' 'unsafe-inline'"
+    "build": {
+        "beforeDevCommand": "bun run dev",
+        "beforeBuildCommand": "bun run build",
+        "frontendDist": "../dist",
+        "devUrl": "http://localhost:1420"
     },
     "bundle": {
-      "active": true,
-      "targets": ["msi", "updater"],
-      "identifier": "com.third3d.uploader",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "windows": {
-        "wix": {
-          "bannerPath": "wix/banner.bmp",
-          "dialogImagePath": "wix/dialog.bmp"
-        }
-      }
+        "active": true,
+        "targets": [
+            "msi"
+        ],
+        "windows": {
+            "wix": {
+                "bannerPath": "wix/banner.bmp",
+                "dialogImagePath": "wix/dialog.bmp"
+            }
+        },
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "createUpdaterArtifacts": "v1Compatible",
+        "fileAssociations": [{
+            "description": "Third Avatar Bundle",
+            "ext": ["3b"]
+        }]
     },
-    "updater": {
-      "active": true,
-      "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1QTRDMjA2QTVEMDJFQTAKUldTZ0x0Q2xCc0treFZVeXpxSHR2Q1NpODI5MDhDdUl6dENxRGtxUmR4cGYrajFrVWkzVmVvdFAK",
-      "windows": {
-        "installMode": "passive"
-      },
-      "endpoints": [
-        "https://github.com/third3d/uploader/releases/latest/download/latest.json"
-      ]
+    "productName": "Third Uploader",
+    "mainBinaryName": "Third Uploader",
+    "identifier": "com.third3d.uploader",
+    "plugins": {
+        "updater": {
+            "windows": {
+                "installMode": "passive"
+            },
+            "endpoints": [
+                "https://github.com/third3d/uploader/releases/latest/download/latest.json"
+            ],
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1QTRDMjA2QTVEMDJFQTAKUldTZ0x0Q2xCc0treFZVeXpxSHR2Q1NpODI5MDhDdUl6dENxRGtxUmR4cGYrajFrVWkzVmVvdFAK"
+        }
+    },
+    "app": {
+        "security": {
+            "assetProtocol": {
+                "scope": [
+                    "$APPDATA/bundles/**"
+                ],
+                "enable": true
+            },
+            "csp": "default-src 'self'; img-src 'self' *.vrchat.cloud asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+        },
+        "windows": [
+            {
+                "title": "Third Uploader",
+                "width": 800,
+                "height": 600,
+                "minWidth": 800,
+                "minHeight": 600,
+                "decorations": false,
+                "dragDropEnabled": true,
+                "visible": true,
+                "useHttpsScheme": true,
+                "userAgent": "Third Uploader/0.3.0 third3dcom@gmail.com",
+                "backgroundColor": "#101011"
+            }
+        ]
     }
-  }
 }

@@ -1,8 +1,8 @@
 import { createContext, FormEvent, MouseEvent, ReactNode, useContext, useEffect, useState } from "react";
 import { getUser, User, verifyTwoFactor, logout as apiLogout } from "./api";
-import { invoke } from "@tauri-apps/api";
+import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
-import { BaseDirectory, exists, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
+import { BaseDirectory, exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./components/ui/dialog";
 import { Label } from "./components/ui/label";
 import { Input } from "./components/ui/input";
@@ -11,7 +11,7 @@ import vrchatLogo from "./assets/VRC_Logo.svg";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "./components/ui/input-otp";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { LoaderCircle } from "lucide-react";
-import { open } from "@tauri-apps/api/shell";
+import { open } from "@tauri-apps/plugin-shell";
 
 
 const ExternalLink = (props: { href: string, children: ReactNode; }) => {
@@ -58,15 +58,15 @@ const ConfigShema = z.object({
 });
 
 const saveConfig = async (config: z.infer<typeof ConfigShema>) => {
-  await writeTextFile("config.json", JSON.stringify(config), { dir: BaseDirectory.AppData, });
+  await writeTextFile("config.json", JSON.stringify(config), { baseDir: BaseDirectory.AppData, });
 };
 
 const loadConfig = async () => {
-  if (!await exists("config.json", { dir: BaseDirectory.AppData })) {
+  if (!await exists("config.json", { baseDir: BaseDirectory.AppData })) {
     return null;
   }
   const str = await readTextFile("config.json", {
-    dir: BaseDirectory.AppData
+    baseDir: BaseDirectory.AppData
   });
   const config = ConfigShema.parse(JSON.parse(str));
   return config;

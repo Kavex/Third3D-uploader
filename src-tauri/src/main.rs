@@ -18,7 +18,7 @@ use md5::{Digest, Md5};
 use rand::Rng;
 use reqwest::{header::*, Body};
 use serde::{Deserialize, Serialize};
-use tauri::PathResolver;
+use tauri::{path, AppHandle, Manager, Url};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::{
     codec::{BytesCodec, FramedRead},
@@ -27,8 +27,8 @@ use tokio_util::{
 use zip::ZipArchive;
 
 //   mod file_watcher;
-mod upload;
 mod bundle;
+mod upload;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,10 +72,7 @@ fn md5_digest_file(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn signature_generate_from_file(
-    path: String,
-    output: String
-) -> Result<(), String> {
+async fn signature_generate_from_file(path: String, output: String) -> Result<(), String> {
     let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
     let mut signature = Signature::with_options(&file, 2048, 32, librsync::SignatureType::Blake2)
         .map_err(|e| e.to_string())?;
@@ -92,9 +89,9 @@ async fn unpack_bundle(app_handle: tauri::AppHandle, path: String) -> Result<Str
         let reader = BufReader::new(file);
         let mut archive = ZipArchive::new(reader).map_err(|e| e.to_string())?;
         let app_dir = app_handle
-            .path_resolver()
+            .path()
             .app_data_dir()
-            .ok_or("No data dir")?;
+            .map_err(|e| e.to_string())?;
 
         let mut tmp = PathBuf::from("bundles");
 
@@ -164,9 +161,11 @@ async fn upload_file(
     if response.status().is_success() {
         let h = response.headers().get("etag");
         let etag = if let Some(etag) = h {
-            Some(etag.to_str()
+            Some(
+                etag.to_str()
                     .map(|v| v.to_owned())
-                    .map_err(|err| err.to_string())?)
+                    .map_err(|err| err.to_string())?,
+            )
         } else {
             None
         };
@@ -180,9 +179,65 @@ async fn upload_file(
     }
 }
 
+fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
+    // -- Scope handling start --
+
+    // You can remove this block if you only want to know about the paths, but not actually "use" them in the frontend.
+
+    // This requires the `fs` tauri plugin and is required to make the plugin's frontend work:
+    // use tauri_plugin_fs::FsExt;
+    // let fs_scope = app.fs_scope();
+
+    // This is for the `asset:` protocol to work:
+    let asset_protocol_scope = app.asset_protocol_scope();
+
+    for file in &files {
+        // This requires the `fs` plugin:
+        // let _ = fs_scope.allow_file(file);
+
+        // This is for the `asset:` protocol:
+        let _ = asset_protocol_scope.allow_file(file);
+    }
+
+    // -- Scope handling end --
+
+    let files = files
+        .into_iter()
+        .map(|f| {
+            let file = f.to_string_lossy(); // escape backslash
+            format!("\"{file}\"",) // wrap in quotes for JS array
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let window = app.get_webview_window("main").unwrap();
+    window
+        .eval(&format!("window.openedFiles = [{files}]"))
+        .unwrap();
+}
+
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_fs_extra::init())
+        .setup(|app| {
+            let file = if let Some(arg) = std::env::args().nth(1) {
+                app.asset_protocol_scope().allow_file(&arg).unwrap();
+                let f = arg.replace('\\', "\\\\");
+                format!("\"{f}\"")
+            } else {
+                "null".to_string()
+            };
+
+            let window = app.get_webview_window("main").unwrap();
+            window
+                .eval(&format!("window.openedFile = {file}"))
+                .unwrap();
+            Ok(())
+        })
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(upload::init())
         .invoke_handler(tauri::generate_handler![
             save_token,
@@ -192,7 +247,8 @@ fn main() {
             signature_generate_from_file,
             unpack_bundle,
             upload_file,
-            transcode_bundle
+            transcode_bundle,
+            upload::upload
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
