@@ -18,12 +18,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from './components/ui/tooltip';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { useUpload } from './upload-avatar';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
 import { open } from '@tauri-apps/plugin-shell';
 import { Bundle, useBundle, ReadyBundles } from './bundle';
 import { UnlistenFn } from '@tauri-apps/api/event';
+import * as api from './api';
 const appWindow = getCurrentWebviewWindow();
 
 
@@ -90,6 +91,30 @@ function Avatar(props: { bundle: Bundle, readyBundle: ReadyBundles, onFinish: ()
     const { progress, uploading, upload } = useUpload(props.bundle, props.readyBundle);
     const [toastId, setToastId] = useState<string | number | null>(null);
     const bundles = props.bundle.metadata.assetBundles;
+    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+    useEffect(() => {
+        if (!authToken) return;
+        const call = async () => {
+            try {
+                const avatar = await api.getAvatar(authToken, props.bundle.metadata.blueprintId);
+                const uploadDates = await Promise.all(
+                    avatar.unityPackages
+                        .filter(up => up.variant === "standard")
+                        .map(async (up) => {
+                            const fileUrl = api.parseFileUrl(up.assetUrl);
+                            const file = await api.showFile(authToken, fileUrl.id);
+                            return new Date(file.versions[file.versions.length - 1].created_at).getTime();
+                        })
+                );
+                const newest = new Date(Math.max(...uploadDates));
+                setLastUpdate(newest);
+            } catch (err) {
+                console.warn(err);
+            }
+        };
+        call();
+    }, [authToken]);
 
     useEffect(() => {
         if (!progress) return;
@@ -146,7 +171,7 @@ function Avatar(props: { bundle: Bundle, readyBundle: ReadyBundles, onFinish: ()
 
 
     return <>
-        <div className='flex flex-col items-center pt-4 h-full'>
+        <div className='flex flex-col items-center h-full'>
             <div className='flex flex-col items-center gap-6'>
                 <h1 className='text-3xl font-semibold'>{props.bundle.metadata.name}</h1>
                 <img src={convertFileSrc(props.bundle.thumbnailPath)} className='aspect-[4/3] w-96 shadow-2xl shadow-black rounded-xl object-cover' />
@@ -165,9 +190,14 @@ function Avatar(props: { bundle: Bundle, readyBundle: ReadyBundles, onFinish: ()
                             <AssetBundleInfo platform="ios" performance={bundles.ios.performance} />
                         }
                     </div>
-                    <div className='flex items-center gap-2'>
-                        <Button variant='outline' onClick={handleCancel} disabled={uploading}>Cancel</Button>
-                        <Button onClick={handleUpload} className='pl-3 transition-shadow hover:shadow-lg hover:shadow-white/50' disabled={uploading}><Upload className="h-4 mr-2" />Upload</Button>
+                    <div className='flex flex-col gap-1'>
+                        <div className='flex items-center gap-2'>
+                            <Button variant='outline' onClick={handleCancel} disabled={uploading}>Cancel</Button>
+                            <Button onClick={handleUpload} className='pl-3 transition-shadow hover:shadow-lg hover:shadow-white/50' disabled={uploading}><Upload className="h-4 mr-2" />
+                                {lastUpdate ? "Update" : "Upload"}
+                            </Button>
+                        </div>
+                        {lastUpdate && <p className='text-sm text-muted-foreground'>Last upload: {lastUpdate.toLocaleString()}</p>}
                     </div>
                 </TooltipProvider>
             </div>
@@ -219,12 +249,12 @@ function App() {
 
     // workaround white flashing background on launch
     useEffect(() => {
-        setTimeout(async () => {
-            await appWindow.show();
-        }, 100);
-        if (window.openedFile) {
-            handleFile(window.openedFile)
-        }
+        const call = async () => {
+            const file = await invoke("file_arg");
+            console.log(file);
+            if (file) handleFile(file as string);
+        };
+        call();
     }, []);
 
     // TODO: upload cancel confirmation prompt

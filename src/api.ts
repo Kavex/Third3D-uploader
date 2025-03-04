@@ -15,6 +15,21 @@ const parseSetCookieHeader = (setCookieHeaders: string[]) => {
     return cookies;
 };
 
+// export const fileRegex = /https?:\/\/[^\/]+\/api\/1\/file\/(?<fileId>\w+)\/(?<fileVersion>\w+)\/(?<variant>\w+)/;
+export const fileRegex = /https?:\/\/[^\/]+\/api\/\d+\/(?<endpoint>file|image)\/(?<id>[^/]+)(?:\/(?<version>\d+)(?:\/(file|(?<size>\d+)|variant\/(?<variant>\w+)))?)?/;
+
+export const parseFileUrl = (url: string) => {
+    const res = url.match(fileRegex);
+    if (!res?.groups) throw new Error("Invalid url");
+    return res.groups as {
+        endpoint: "file" | "image", 
+        id: string,
+        version: string,
+        size?: string
+        variant?: string
+    }
+};
+
 export class VRChatError extends Error {
     data: any;
 
@@ -347,6 +362,20 @@ export const createFileVersion = async (
     }
 };
 
+export const deleteFileVersion = async (authToken: string, fileId: string, versionId: string | number) => {
+    const response = await fetchT(`${API_BASE_URL}/file/${fileId}/${versionId}`, {
+        method: 'DELETE',
+        headers: {
+            'User-Agent': USER_AGENT,
+            'Cookie': `auth=${authToken}`
+        }
+    });
+
+    const data = await response.json();
+    if (response.ok) return data as File;
+    else throw new VRChatError(data);
+}
+
 export interface Avatar {
     assetUrl: string;
     assetUrlObject?: object;
@@ -373,6 +402,7 @@ export interface Avatar {
         pluginUrlObject?: object;
         unitySortNumber: number;
         unityVersion: string;
+        variant: string;
     }[];
     updated_at: string;
     version: number;
@@ -392,7 +422,6 @@ export const getAvatar = async (authToken: string, avatarId: string): Promise<Av
         const data = await resp.json();
         throw new VRChatError(data);
     }
-
     return await resp.json();
 };
 
@@ -439,7 +468,7 @@ export const updateAvatar = async (
         platform?: string;
         unityVersion?: string;
         unityPackageUrl?: string;
-        assetVersion?: 1;
+        assetVersion?: number;
     }
 ): Promise<Avatar> => {
     const resp = await fetchT(`${API_BASE_URL}/avatars/${avatarId}`, {
@@ -515,6 +544,23 @@ export const finishFileUpload = async (
 
 export const showFile = async (authToken: string, fileId: string): Promise<File> => {
     const resp = await fetchT(`${API_BASE_URL}/file/${fileId}`, {
+        method: 'GET',
+        headers: {
+            'User-Agent': USER_AGENT,
+            'Cookie': `auth=${authToken}`
+        }
+    });
+
+    if (!resp.ok) {
+        const data = await resp.json();
+        throw new VRChatError(data);
+    }
+
+    return await resp.json();
+};
+
+export const fetchVRChat = async (authToken: string, url: string): Promise<unknown> => {
+    const resp = await fetchT(url, {
         method: 'GET',
         headers: {
             'User-Agent': USER_AGENT,

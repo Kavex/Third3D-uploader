@@ -1,4 +1,4 @@
-import { Avatar, createAvatar, createFile, createFileVersion, finishFileUpload, getAvatar, showFile, startFileUpload, updateAvatar, USER_AGENT, VRChatError, VRChatMimeType } from "./api";
+import { Avatar, createAvatar, createFile, createFileVersion, deleteFileVersion, finishFileUpload, getAvatar, parseFileUrl, showFile, startFileUpload, updateAvatar, USER_AGENT, VRChatError, VRChatMimeType } from "./api";
 import { stat } from "@tauri-apps/plugin-fs";
 import { extname } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
@@ -25,18 +25,19 @@ export function useUpload(bundle: Bundle, readyBundle: ReadyBundles) {
             const avatarId = bundle.metadata.blueprintId;
 
             let avatar: Avatar | null;
-            // try and get avatar, if avatar exists for user, we have to update
-            // TODO: prompt user to confirm upload (overwrite)
             try {
                 avatar = await getAvatar(authToken, avatarId);
             } catch (err) {
                 avatar = null;
             }
             setProgress({ type: "thumbnail" });
-            const imageUrl = await uploadFileToVRChat(authToken, imageFileName(bundle.metadata.name), bundle.thumbnailPath, "image/png", (part, totalParts) => { });
+
             if (avatar) {
+                const imageFileUrlRes = parseFileUrl(avatar.thumbnailImageUrl);
+                const imageUrl = await uploadFileToVRChat(authToken, imageFileName(bundle.metadata.name), bundle.thumbnailPath, "image/png", (part, totalParts) => { }, imageFileUrlRes.id);
                 await updateAvatar(authToken, avatarId, { name: bundle.metadata.name, imageUrl });
             } else {
+                const imageUrl = await uploadFileToVRChat(authToken, imageFileName(bundle.metadata.name), bundle.thumbnailPath, "image/png", (part, totalParts) => { });
                 try {
                     avatar = await createAvatar(authToken, { id: avatarId, name: bundle.metadata.name, imageUrl, releaseStatus: "private", unityVersion: "2022.3.6f1" });
                 } catch (err) {
@@ -54,10 +55,16 @@ export function useUpload(bundle: Bundle, readyBundle: ReadyBundles) {
             for await (const { platform, path } of readyBundle()) {
                 const unityPlatform = platform === "windows" ? "standalonewindows" : platform;
                 const unityVersion = bundle.metadata.assetBundles[platform as Platform]!!.unityVersion;
-                const avatarUrl = await uploadFileToVRChat(authToken, avatarFileName(bundle.metadata.name), path, "application/x-avatar", (part, totalParts) => {
+
+                const existingFile = avatar.unityPackages.find(up => up.platform === unityPlatform && up.variant === "standard");
+
+                let fileId = undefined;
+                if (existingFile) fileId = parseFileUrl(existingFile.assetUrl).id;
+
+                const bundleUrl = await uploadFileToVRChat(authToken, avatarFileName(bundle.metadata.name), path, "application/x-avatar", (part, totalParts) => {
                     setProgress({ type: "bundle", part, totalParts, platformIndex, totalPlatforms });
-                });
-                await updateAvatar(authToken, avatar.id, { assetUrl: avatarUrl, platform: unityPlatform, unityVersion: unityVersion, assetVersion: 1 });
+                }, fileId);
+                await updateAvatar(authToken, avatar.id, { assetUrl: bundleUrl, platform: unityPlatform, unityVersion, assetVersion: 1 });
                 platformIndex++;
             }
             setProgress({ type: "completed" });
@@ -72,9 +79,15 @@ export function useUpload(bundle: Bundle, readyBundle: ReadyBundles) {
 }
 
 // returns asssetUrl
-async function uploadFileToVRChat(authToken: string, name: string, path: string, mimeType: VRChatMimeType, onProgress: (part: number, totalParts: number) => void) {
+async function uploadFileToVRChat(authToken: string, name: string, path: string, mimeType: VRChatMimeType, onProgress: (part: number, totalParts: number) => void, fileId?: string) {
     const extension = "." + await extname(path);
-    let file = await createFile(authToken, { name, mimeType, extension });
+
+    let file;
+    if (fileId) {
+        file = await showFile(authToken, fileId);
+    } else {
+        file = await createFile(authToken, { name, mimeType, extension });
+    }
 
     const fileMd5 = await md5DigestFile(path);
     const fileMetadata = await stat(path, {});
@@ -84,12 +97,16 @@ async function uploadFileToVRChat(authToken: string, name: string, path: string,
     const signatureMd5 = await md5DigestFile(signaturePath);
     const signatureMetadata = await stat(signaturePath);
 
+    if (file.versions[file.versions.length - 1].status !== "complete") await deleteFileVersion(authToken, file.id, file.versions.length - 1);
+
     file = await createFileVersion(authToken, file.id, {
         signatureMd5,
         signatureSizeInBytes: signatureMetadata.size,
         fileMd5,
         fileSizeInBytes: fileMetadata.size
     });
+
+    const fileVersionId = file.versions.length - 1;
 
     const uploadFile = async () => {
         if (file.versions[file.versions.length - 1].file!!.category === "multipart") {
@@ -102,7 +119,7 @@ async function uploadFileToVRChat(authToken: string, name: string, path: string,
                     const start = (partNumber - 1) * partSize;
                     const end = Math.min(partNumber * partSize, fileMetadata.size);
                     const length = end - start;
-                    const { url } = await startFileUpload(authToken, file.id, 1, "file", partNumber);
+                    const { url } = await startFileUpload(authToken, file.id, fileVersionId, "file", partNumber);
                     const etag = await invoke("upload_file", { url, path, start, length }) as string;
                     if (etag) {
                         etags[partNumber - 1] = etag.replace(/^['"]|['"]$/g, '');
@@ -112,31 +129,29 @@ async function uploadFileToVRChat(authToken: string, name: string, path: string,
                 };
                 await uploadPart();
             }
-            await finishFileUpload(authToken, file.id, 1, "file", { etags });
+            await finishFileUpload(authToken, file.id, fileVersionId, "file", { etags });
             onProgress(maxParts, maxParts);
         } else {
             onProgress(0, 1);
-            const { url } = await startFileUpload(authToken, file.id, 1, "file");
-            console.log('start upload');
+            const { url } = await startFileUpload(authToken, file.id, fileVersionId, "file");
             const resp = await upload(url, path, undefined, new Map<string, string>([
                 ["User-Agent", USER_AGENT],
                 ["Content-Type", mimeType],
                 ["Content-MD5", fileMd5]
             ]));
-            console.log('finish upload');
-            await finishFileUpload(authToken, file.id, 1, "file");
+            await finishFileUpload(authToken, file.id, fileVersionId, "file");
             onProgress(1, 1);
         }
     };
 
     const uploadSig = async () => {
-        const { url } = await startFileUpload(authToken, file.id, 1, "signature");
+        const { url } = await startFileUpload(authToken, file.id, fileVersionId, "signature");
         const resp = await upload(url, signaturePath, undefined, new Map<string, string>([
             ["User-Agent", USER_AGENT],
             ["Content-Type", "application/x-rsync-signature"],
             ["Content-MD5", signatureMd5]
         ]));
-        await finishFileUpload(authToken, file.id, 1, "signature");
+        await finishFileUpload(authToken, file.id, fileVersionId, "signature");
     };
 
     await Promise.all([uploadFile(), uploadSig()]);
