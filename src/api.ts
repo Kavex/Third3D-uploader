@@ -1,7 +1,7 @@
 import { fetch as fetchT } from '@tauri-apps/plugin-http';
 
 const API_BASE_URL = 'https://api.vrchat.cloud/api/1';
-export const USER_AGENT = 'Third Uploader/0.1.2 third3dcom@gmail.com';
+export const USER_AGENT = 'Third Uploader/0.3.0 third3dcom@gmail.com';
 
 const parseSetCookieHeader = (setCookieHeaders: string[]) => {
     const cookies = {};
