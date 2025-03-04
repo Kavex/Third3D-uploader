@@ -255,10 +255,10 @@ export function AuthProvider(props: { children: ReactNode; }) {
             <>
               <form onSubmit={handleLogin} autoComplete="off" className="flex flex-col flex-grow gap-4">
                 <div>
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Username/Email</Label>
                   <Input
                     id="username"
-                    placeholder='Username'
+                    placeholder='Username/Email'
                     value={username}
                     onChange={(ev) => setUsername(ev.target.value)}
                     disabled={loading}
