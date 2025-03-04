@@ -60,6 +60,7 @@
                 "height": 600,
                 "minWidth": 800,
                 "minHeight": 600,
+                "center": true,
                 "decorations": false,
                 "dragDropEnabled": true,
                 "visible": true,
