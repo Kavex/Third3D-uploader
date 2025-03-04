@@ -179,60 +179,20 @@ async fn upload_file(
     }
 }
 
-fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
-    // -- Scope handling start --
-
-    // You can remove this block if you only want to know about the paths, but not actually "use" them in the frontend.
-
-    // This requires the `fs` tauri plugin and is required to make the plugin's frontend work:
-    // use tauri_plugin_fs::FsExt;
-    // let fs_scope = app.fs_scope();
-
-    // This is for the `asset:` protocol to work:
-    let asset_protocol_scope = app.asset_protocol_scope();
-
-    for file in &files {
-        // This requires the `fs` plugin:
-        // let _ = fs_scope.allow_file(file);
-
-        // This is for the `asset:` protocol:
-        let _ = asset_protocol_scope.allow_file(file);
+#[tauri::command]
+async fn file_arg(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    if let Some(arg) = std::env::args().nth(1) {
+        app.asset_protocol_scope()
+            .allow_file(&arg)
+            .map_err(|e| e.to_string())?;
+        Ok(Some(arg))
+    } else {
+        Ok(None)
     }
-
-    // -- Scope handling end --
-
-    let files = files
-        .into_iter()
-        .map(|f| {
-            let file = f.to_string_lossy(); // escape backslash
-            format!("\"{file}\"",) // wrap in quotes for JS array
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let window = app.get_webview_window("main").unwrap();
-    window
-        .eval(&format!("window.openedFiles = [{files}]"))
-        .unwrap();
 }
 
 fn main() {
     tauri::Builder::default()
-        .setup(|app| {
-            let file = if let Some(arg) = std::env::args().nth(1) {
-                app.asset_protocol_scope().allow_file(&arg).unwrap();
-                let f = arg.replace('\\', "\\\\");
-                format!("\"{f}\"")
-            } else {
-                "null".to_string()
-            };
-
-            let window = app.get_webview_window("main").unwrap();
-            window
-                .eval(&format!("window.openedFile = {file}"))
-                .unwrap();
-            Ok(())
-        })
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -248,6 +208,7 @@ fn main() {
             unpack_bundle,
             upload_file,
             transcode_bundle,
+            file_arg,
             upload::upload
         ])
         .run(tauri::generate_context!())
