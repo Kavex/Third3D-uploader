@@ -25,6 +25,7 @@ import { open } from '@tauri-apps/plugin-shell';
 import { Bundle, useBundle, ReadyBundles } from './bundle';
 import { UnlistenFn } from '@tauri-apps/api/event';
 import * as api from './api';
+import { check } from '@tauri-apps/plugin-updater';
 const appWindow = getCurrentWebviewWindow();
 
 
@@ -241,11 +242,29 @@ function User() {
     </>;
 }
 
+function useUpdater() {
+    const [updating, setUpdating] = useState(false);
+    useEffect(() => {
+        const call = async () => {
+            const update = await check();
+            if (update?.available) {
+                setUpdating(true);
+                await update.downloadAndInstall();
+            }
+        };
+
+        call();
+    }, []);
+
+    return updating;
+}
+
 
 function App() {
     const { bundle, loading, error, readyBundle, dispatch } = useBundle();
     const [showBundle, setShowBundle] = useState(false);
     const [transition, setTransition] = useState(false);
+    const updating = useUpdater();
 
     // workaround white flashing background on launch
     useEffect(() => {
@@ -304,6 +323,14 @@ function App() {
     const handleClose = () => {
         appWindow.close();
     };
+    
+
+    if (updating) {
+        return <div className="flex justify-center items-center w-screen h-screen">
+            <h1 className='text-2xl text-center font-semibold text-white'>Updating...</h1>
+        </div>
+    }
+
 
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
