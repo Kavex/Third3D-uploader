@@ -133,7 +133,7 @@ async fn transcode_bundle(path: String, output: String) -> Result<(), String> {
     Ok(())
 }
 
-const USER_AGENT: &str = "Third Uploader/0.1.0 third3dcom@gmail.com";
+const USER_AGENT: &str = "Third Uploader/1.0.0 contact@third3d.com";
 
 #[tauri::command]
 async fn upload_file(

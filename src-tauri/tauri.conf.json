@@ -65,7 +65,7 @@
                 "dragDropEnabled": true,
                 "visible": true,
                 "useHttpsScheme": true,
-                "userAgent": "Third Uploader/0.3.0 third3dcom@gmail.com",
+                "userAgent": "Third Uploader/1.0.0 contact@third3d.com",
                 "backgroundColor": "#101011",
                 "theme": "Dark"
             }
