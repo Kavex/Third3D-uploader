@@ -66,7 +66,8 @@
                 "visible": true,
                 "useHttpsScheme": true,
                 "userAgent": "Third Uploader/0.3.0 third3dcom@gmail.com",
-                "backgroundColor": "#101011"
+                "backgroundColor": "#101011",
+                "theme": "Dark"
             }
         ]
     }
