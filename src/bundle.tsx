@@ -19,7 +19,7 @@ interface BundleState {
     bundle: Bundle | null,
     bundlePath: string | null;
     transcodes: Partial<Record<Platform, Promise<string>>>,
-    error: any | null;
+    error: Error | null;
 }
 
 type Action = LoadBundleAction | SetBundleAction | SetTranscodesAction | UnloadBundleAction | SetErrorAction;
@@ -54,6 +54,7 @@ const AssetBundleSchema = z.object({
 });
 
 export const MetadataSchema = z.object({
+    schemaVersion: z.number().optional(),
     name: z.string(),
     blueprintId: z.string(),
     assetBundles: z.object({
@@ -182,6 +183,7 @@ async function unpack(bundlePath: string): Promise<Bundle> {
     const res = MetadataSchema.safeParse(JSON.parse(metadataText));
     if (!res.success) throw new Error("Metadata invalid");
     const metadata = res.data;
+    if (metadata.schemaVersion !== undefined) throw new Error("Restart Third Uploader and update the app.");
 
     const assetBundlePaths: Partial<Record<Platform, AssetBundlePath>> = {};
     for (const platform of ["windows", "android", "ios"]) {
