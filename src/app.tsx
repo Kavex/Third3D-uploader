@@ -282,7 +282,7 @@ function App() {
 
     useEffect(() => {
         if (error) {
-            toast.error("Loading Avatar Bundle Failed", { description: error });
+            toast.error("Loading Avatar Bundle Failed", { description: error.message });
             dispatch({ type: "unload_bundle" });
         }
     }, [error]);
