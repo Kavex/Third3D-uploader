@@ -1,4 +1,4 @@
-# Third Uploader
+# 3B Uploader
 
 Upload pre-built avatars directly to VRChat.
 
