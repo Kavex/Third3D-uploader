@@ -2,7 +2,7 @@
 
 Upload pre-built avatars directly to VRChat.
 
-Build your own Third Avatar Bundle's (.3b) with [Third Unity SDK](https://github.com/third3d/unity-sdk)
+Build your own Third Avatar Bundle's (.3b) with [Third Unity SDK](https://github.com/Kavex/Third3D-unity-sdk)
 
 ![](assets/screen.png)
 
